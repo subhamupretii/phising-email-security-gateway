@@ -1,0 +1,633 @@
+{% extends "base.html" %}
+
+{% block title %}Audit Logs & Threats{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- Header & Mode Banner -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-2 border-b border-slate-200">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Security Gateway Audit Dashboard</h1>
+            <p class="text-sm text-slate-500 mt-0.5">NIST SP 800-86 Cryptographic Evidence Logs & Threat Intelligence</p>
+        </div>
+        <div class="mt-3 sm:mt-0 flex items-center space-x-2.5">
+            <a href="/deleted" class="inline-flex items-center px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 font-semibold text-xs transition">
+                <svg class="w-4 h-4 mr-1.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                Deleted Cases
+                <span id="deletedBadge" class="ml-1.5 px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-slate-200 text-slate-800">{{ deleted_count|default(0) }}</span>
+            </a>
+            <button type="button" onclick="confirmDeleteAll()" class="inline-flex items-center px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-semibold text-xs transition">
+                <svg class="w-4 h-4 mr-1 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                Delete All
+            </button>
+            <span class="inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-medium bg-emerald-100 text-emerald-800 border border-emerald-200">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5 animate-ping"></span>
+                Gateway: 1025
+            </span>
+        </div>
+    </div>
+
+    <!-- 1. Overview Stat Counters -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Total Inspected -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+            <div>
+                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Inspected</p>
+                <p class="text-2xl font-black text-slate-900 mt-1" id="stat-total">{{ stats.total }}</p>
+            </div>
+            <div class="w-12 h-12 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+            </div>
+        </div>
+
+        <!-- Allowed -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+            <div>
+                <p class="text-xs font-semibold text-emerald-600 uppercase tracking-wider">Allowed (Relayed)</p>
+                <p class="text-2xl font-black text-emerald-700 mt-1" id="stat-allow">{{ stats.allow }}</p>
+            </div>
+            <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </div>
+        </div>
+
+        <!-- Quarantined -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+            <div>
+                <p class="text-xs font-semibold text-amber-600 uppercase tracking-wider">Quarantined</p>
+                <p class="text-2xl font-black text-amber-700 mt-1" id="stat-quarantine">{{ stats.quarantine }}</p>
+            </div>
+            <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+            </div>
+        </div>
+
+        <!-- Blocked -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+            <div>
+                <p class="text-xs font-semibold text-rose-600 uppercase tracking-wider">Blocked (Threats)</p>
+                <p class="text-2xl font-black text-rose-700 mt-1" id="stat-block">{{ stats.block }}</p>
+            </div>
+            <div class="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                </svg>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Chart.js Interactive Doughnut Chart Section -->
+    <div class="w-full">
+        <!-- Interactive Chart Card -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-center">
+            <div class="w-full flex items-center justify-between mb-2">
+                <h2 class="text-sm font-bold text-slate-800 uppercase tracking-wider">Verdict Distribution</h2>
+                <div class="flex items-center space-x-4 text-xs font-medium text-slate-600">
+                    <span class="inline-flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 mr-1.5"></span>Allow</span>
+                    <span class="inline-flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-amber-500 mr-1.5"></span>Quarantine</span>
+                    <span class="inline-flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-rose-500 mr-1.5"></span>Block</span>
+                </div>
+            </div>
+            <div class="relative w-full max-w-[260px] aspect-square my-2">
+                <canvas id="verdictChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Searchable Audit Table -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        
+        <!-- Table Search & Filter Controls -->
+        <div class="p-4 sm:p-5 border-b border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <div>
+                <h3 class="text-base font-bold text-slate-900">Forensic Message Audit Log</h3>
+                <p class="text-xs text-slate-500 mt-0.5">Real-time log of all inbound SMTP transactions</p>
+            </div>
+            
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 w-full sm:w-auto">
+                <!-- Search Box -->
+                <div class="relative w-full sm:w-64">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                    </div>
+                    <input type="text" id="searchInput" onkeyup="filterAuditTable()"
+                        placeholder="Search sender, subject, verdict..."
+                        class="block w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-slate-300 bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition shadow-sm">
+                </div>
+
+                <!-- Verdict Filter Buttons -->
+                <div class="inline-flex rounded-lg shadow-sm border border-slate-200 bg-white p-0.5 text-xs font-medium">
+                    <button type="button" onclick="filterByVerdict('ALL')" class="filter-btn active px-2.5 py-1 rounded bg-slate-900 text-white font-semibold">All</button>
+                    <button type="button" onclick="filterByVerdict('ALLOW')" class="filter-btn px-2.5 py-1 rounded text-slate-600 hover:text-slate-900">Allow</button>
+                    <button type="button" onclick="filterByVerdict('QUARANTINE')" class="filter-btn px-2.5 py-1 rounded text-slate-600 hover:text-slate-900">Quarantine</button>
+                    <button type="button" onclick="filterByVerdict('BLOCK')" class="filter-btn px-2.5 py-1 rounded text-slate-600 hover:text-slate-900">Block</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Table Content -->
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse" id="auditTable">
+                <thead>
+                    <tr class="bg-slate-100/70 border-b border-slate-200 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                        <th class="py-3 px-4">ID</th>
+                        <th class="py-3 px-4">Received (UTC)</th>
+                        <th class="py-3 px-4">Sender</th>
+                        <th class="py-3 px-4">Subject</th>
+                        <th class="py-3 px-4">Verdict</th>
+                        <th class="py-3 px-4">Threat Score</th>
+                        <th class="py-3 px-4">AI Score</th>
+                        <th class="py-3 px-4">SHA-256 Hash</th>
+                        <th class="py-3 px-4 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 text-xs">
+                    {% for msg in messages %}
+                    <tr class="hover:bg-slate-50/80 transition duration-100 audit-row" data-verdict="{{ msg.decision }}">
+                        <td class="py-3 px-4 font-mono font-semibold text-slate-900">#{{ msg.id }}</td>
+                        <td class="py-3 px-4 text-slate-600 whitespace-nowrap">{{ msg.timestamp }}</td>
+                        <td class="py-3 px-4 font-medium text-slate-900 max-w-[180px] truncate" title="{{ msg.sender }}">{{ msg.sender }}</td>
+                        <td class="py-3 px-4 text-slate-800 max-w-[220px] truncate" title="{{ msg.subject }}">{{ msg.subject }}</td>
+                        <td class="py-3 px-4 whitespace-nowrap">
+                            {% if msg.decision == 'ALLOW' %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 uppercase">ALLOW</span>
+                            {% elif msg.decision == 'QUARANTINE' %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-200 uppercase">QUARANTINE</span>
+                            {% else %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-200 uppercase">BLOCK</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-4 whitespace-nowrap">
+                            {% if msg.score < 35 %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded font-mono font-bold text-xs bg-emerald-50 text-emerald-700 border border-emerald-200">{{ msg.score|int }}/100</span>
+                            {% elif msg.score < 70 %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded font-mono font-bold text-xs bg-amber-50 text-amber-700 border border-amber-200">{{ msg.score|int }}/100</span>
+                            {% else %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded font-mono font-bold text-xs bg-rose-50 text-rose-700 border border-rose-200">{{ msg.score|int }}/100</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-4 whitespace-nowrap">
+                            <span class="px-2 py-1 rounded text-xs font-bold text-white bg-blue-600">
+                                AI Confidence: {{ msg.ai_score if msg.ai_score is defined and msg.ai_score is not none else 0 }}%
+                            </span>
+                        </td>
+                        <td class="py-3 px-4 font-mono text-[11px] text-slate-500 whitespace-nowrap" title="{{ msg.sha256_hash }}">
+                            <div class="flex flex-col space-y-1">
+                                <code>{{ msg.sha256_hash[:12] }}...</code>
+                                <div class="flex items-center space-x-1.5" id="verify-container-{{ msg.id }}">
+                                    {% if msg.verification_status == 'VERIFIED' %}
+                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-sm" title="Verified {{ msg.last_verified_at or '' }}">
+                                            ✓ Verified
+                                        </span>
+                                    {% elif msg.verification_status == 'TAMPERED' %}
+                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300 shadow-sm animate-pulse">
+                                            ⚠ Tampered
+                                        </span>
+                                    {% else %}
+                                        <button type="button" onclick="verifyIntegrity({{ msg.id }})" id="verify-btn-{{ msg.id }}" class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition">
+                                            Verify Integrity
+                                        </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                        <td class="py-3 px-4 text-right whitespace-nowrap">
+                            <!-- Eye Icon Actions Dropdown -->
+                            <div class="relative inline-block text-left action-dropdown">
+                                <button type="button" onclick="toggleActionDropdown({{ msg.id }}, event)" class="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition focus:outline-none" title="Actions">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                </button>
+                                <div id="dropdown-menu-{{ msg.id }}" class="hidden absolute right-0 mt-1 w-36 bg-white rounded-xl shadow-lg border border-slate-200 py-1.5 z-30 animate-in fade-in zoom-in duration-100">
+                                    <button type="button" onclick="openInspectModal({{ msg.id }})" class="w-full text-left px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 flex items-center space-x-2">
+                                        <svg class="w-4 h-4 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                        <span>Inspect</span>
+                                    </button>
+                                    <button type="button" onclick="deleteCase({{ msg.id }})" class="w-full text-left px-3 py-1.5 text-xs text-rose-600 hover:bg-rose-50 flex items-center space-x-2 border-t border-slate-100">
+                                        <svg class="w-4 h-4 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                        <span>Delete</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr id="emptyRow">
+                        <td colspan="9" class="py-12 text-center text-slate-400">
+                            <div class="flex flex-col items-center justify-center space-y-2">
+                                <svg class="w-8 h-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                                </svg>
+                                <span>No email audit records found in database. Inbound traffic will appear automatically.</span>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- Shared Forensic Inspection Modal -->
+{% include "inspect_modal.html" %}
+
+<!-- Client-side JavaScript for Chart.js, Socket.IO & Table Filtering -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+<script>
+    // ---------------------------------------------------------------
+    // Eye Icon Dropdown Management
+    // ---------------------------------------------------------------
+    let activeOpenDropdown = null;
+
+    function toggleActionDropdown(id, event) {
+        event.stopPropagation();
+        const menu = document.getElementById(`dropdown-menu-${id}`);
+        if (!menu) return;
+
+        // Close any currently open dropdown
+        if (activeOpenDropdown && activeOpenDropdown !== menu) {
+            activeOpenDropdown.classList.add('hidden');
+        }
+
+        const isHidden = menu.classList.contains('hidden');
+        if (isHidden) {
+            menu.classList.remove('hidden');
+            activeOpenDropdown = menu;
+        } else {
+            menu.classList.add('hidden');
+            activeOpenDropdown = null;
+        }
+    }
+
+    // Close open dropdowns when clicking anywhere outside
+    document.addEventListener('click', function(e) {
+        if (activeOpenDropdown && !activeOpenDropdown.contains(e.target)) {
+            activeOpenDropdown.classList.add('hidden');
+            activeOpenDropdown = null;
+        }
+    });
+
+    // Soft Delete single case
+    function deleteCase(logId) {
+        if (!confirm(`Move case #${logId} to Deleted Cases (30-day retention)?`)) return;
+        fetch(`/api/logs/${logId}/delete`, { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                // Remove row from table
+                const rows = document.querySelectorAll('.audit-row');
+                rows.forEach(r => {
+                    if (r.innerText.includes(`#${logId}`)) r.remove();
+                });
+                // Increment deleted badge count
+                const badge = document.getElementById('deletedBadge');
+                if (badge) badge.textContent = parseInt(badge.textContent || '0', 10) + 1;
+                // Re-fetch stats to update chart & counters
+                fetch('/api/stats')
+                    .then(res => res.json())
+                    .then(stats => {
+                        liveStats = stats;
+                        document.getElementById('stat-total').textContent = stats.total;
+                        document.getElementById('stat-allow').textContent = stats.allow;
+                        document.getElementById('stat-quarantine').textContent = stats.quarantine;
+                        document.getElementById('stat-block').textContent = stats.block;
+                        updateChart();
+                    });
+            })
+            .catch(err => alert("Error deleting case: " + err));
+    }
+
+    // Delete All active cases
+    function confirmDeleteAll() {
+        if (!confirm("Are you sure you want to move ALL active cases to Deleted Cases? They will be retained for 30 days.")) return;
+        fetch('/api/logs/delete-all', { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                // Clear active rows
+                const tbody = document.querySelector('#auditTable tbody');
+                if (tbody) {
+                    tbody.innerHTML = `
+                        <tr id="emptyRow">
+                            <td colspan="9" class="py-12 text-center text-slate-400">
+                                <div class="flex flex-col items-center justify-center space-y-2">
+                                    <svg class="w-8 h-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                                    </svg>
+                                    <span>All active records moved to Deleted Cases archive.</span>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                }
+                const badge = document.getElementById('deletedBadge');
+                if (badge) badge.textContent = parseInt(badge.textContent || '0', 10) + (data.count || 0);
+
+                // Zero out counters
+                liveStats = { allow: 0, quarantine: 0, block: 0, total: 0 };
+                document.getElementById('stat-total').textContent = 0;
+                document.getElementById('stat-allow').textContent = 0;
+                document.getElementById('stat-quarantine').textContent = 0;
+                document.getElementById('stat-block').textContent = 0;
+                updateChart();
+            })
+            .catch(err => alert("Error deleting all cases: " + err));
+    }
+    // 1. Initialize Chart.js Verdict Doughnut
+    let verdictChart = null;
+    // Running stat counters (kept in sync by WebSocket events)
+    let liveStats = {
+        allow: {{ stats.allow }},
+        quarantine: {{ stats.quarantine }},
+        block: {{ stats.block }},
+        total: {{ stats.total }}
+    };
+
+    function initChart(stats) {
+        const ctx = document.getElementById('verdictChart').getContext('2d');
+        const dataValues = [stats.allow, stats.quarantine, stats.block];
+        const isAllZero = dataValues.every(v => v === 0);
+
+        verdictChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['ALLOW', 'QUARANTINE', 'BLOCK'],
+                datasets: [{
+                    data: isAllZero ? [1, 1, 1] : dataValues,
+                    backgroundColor: isAllZero 
+                        ? ['#e2e8f0', '#cbd5e1', '#94a3b8'] 
+                        : ['#10b981', '#f59e0b', '#ef4444'],
+                    borderWidth: 2,
+                    borderColor: '#ffffff',
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        enabled: !isAllZero,
+                        callbacks: {
+                            label: function(context) {
+                                return ` ${context.label}: ${context.raw}`;
+                            }
+                        }
+                    }
+                },
+                cutout: '72%'
+            }
+        });
+    }
+
+    function updateChart() {
+        if (!verdictChart) return;
+        const d = [liveStats.allow, liveStats.quarantine, liveStats.block];
+        const allZero = d.every(v => v === 0);
+        verdictChart.data.datasets[0].data = allZero ? [1, 1, 1] : d;
+        verdictChart.data.datasets[0].backgroundColor = allZero
+            ? ['#e2e8f0', '#cbd5e1', '#94a3b8']
+            : ['#10b981', '#f59e0b', '#ef4444'];
+        verdictChart.options.plugins.tooltip.enabled = !allZero;
+        verdictChart.update('none');  // 'none' = skip animation on update
+    }
+
+    // Fetch live statistics from /api/stats
+    fetch('/api/stats')
+        .then(response => response.json())
+        .then(data => {
+            liveStats = data;
+            initChart(data);
+        })
+        .catch(err => {
+            initChart(liveStats);
+        });
+
+    // 2. Audit Table Client-Side Filter
+    let activeVerdictFilter = 'ALL';
+
+    function filterByVerdict(verdict) {
+        activeVerdictFilter = verdict;
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.classList.remove('bg-slate-900', 'text-white', 'font-semibold');
+            btn.classList.add('text-slate-600');
+        });
+        event.target.classList.add('bg-slate-900', 'text-white', 'font-semibold');
+        event.target.classList.remove('text-slate-600');
+        filterAuditTable();
+    }
+
+    function filterAuditTable() {
+        const searchVal = document.getElementById('searchInput').value.toLowerCase();
+        const rows = document.querySelectorAll('.audit-row');
+
+        rows.forEach(row => {
+            const rowText = row.innerText.toLowerCase();
+            const rowVerdict = (row.getAttribute('data-verdict') || '').toUpperCase();
+
+            const matchesSearch = rowText.includes(searchVal);
+            const matchesVerdict = (activeVerdictFilter === 'ALL' || rowVerdict === activeVerdictFilter);
+
+            if (matchesSearch && matchesVerdict) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+
+    // ---------------------------------------------------------------
+    // 2b. Forensic SHA-256 Hash Verification Function
+    // ---------------------------------------------------------------
+    function verifyIntegrity(logId) {
+        const container = document.getElementById(`verify-container-${logId}`);
+        const btn = document.getElementById(`verify-btn-${logId}`);
+        if (!container) return;
+
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = `<span class="inline-block animate-spin mr-1">↻</span>Checking...`;
+        }
+
+        fetch(`/api/logs/${logId}/verify-hash`, { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'VERIFIED') {
+                    container.innerHTML = `
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-sm" title="SHA-256 match: ${data.stored_hash}">
+                            ✓ Integrity Verified
+                        </span>
+                    `;
+                } else if (data.status === 'TAMPERED') {
+                    container.innerHTML = `
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300 shadow-sm animate-pulse" title="Hash mismatch!">
+                            ⚠ File Tampered
+                        </span>
+                    `;
+                } else {
+                    container.innerHTML = `
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 shadow-sm" title="Evidence payload not found on disk">
+                            ⚠ File Missing
+                        </span>
+                    `;
+                }
+            })
+            .catch(err => {
+                console.error("Verification error:", err);
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = "Retry Verify";
+                }
+            });
+    }
+
+    // ---------------------------------------------------------------
+    // 3. Socket.IO Real-Time Updates
+    // ---------------------------------------------------------------
+    function buildVerdictBadge(decision) {
+        const map = {
+            ALLOW:      { bg: 'bg-emerald-100', text: 'text-emerald-800', border: 'border-emerald-200' },
+            QUARANTINE: { bg: 'bg-amber-100',   text: 'text-amber-800',   border: 'border-amber-200'   },
+            BLOCK:      { bg: 'bg-rose-100',    text: 'text-rose-800',    border: 'border-rose-200'     },
+        };
+        const c = map[(decision || '').toUpperCase()] || map.BLOCK;
+        return `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold ${c.bg} ${c.text} border ${c.border} uppercase">${decision}</span>`;
+    }
+
+    function buildScoreBadge(score) {
+        let bg, text, border;
+        if (score < 35) {
+            bg = 'bg-emerald-50'; text = 'text-emerald-700'; border = 'border-emerald-200';
+        } else if (score < 70) {
+            bg = 'bg-amber-50'; text = 'text-amber-700'; border = 'border-amber-200';
+        } else {
+            bg = 'bg-rose-50'; text = 'text-rose-700'; border = 'border-rose-200';
+        }
+        return `<span class="inline-flex items-center px-2 py-0.5 rounded font-mono font-bold text-xs ${bg} ${text} border ${border}">${Math.round(score)}/100</span>`;
+    }
+
+    function insertEmailRow(data) {
+        const tbody = document.querySelector('#auditTable tbody');
+        // Remove the "no records" placeholder row if present
+        const emptyRow = document.getElementById('emptyRow');
+        if (emptyRow) emptyRow.remove();
+
+        const hashShort = (data.sha256_hash || '').substring(0, 12);
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50/80 transition duration-100 audit-row animate-pulse';
+        tr.setAttribute('data-verdict', data.decision || '');
+        const aiScore = (data.ai_score !== undefined && data.ai_score !== null) ? data.ai_score : 0;
+        const vStatus = data.verification_status || 'UNVERIFIED';
+        const verifyCell = vStatus === 'VERIFIED'
+            ? `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-sm">✓ Verified</span>`
+            : vStatus === 'TAMPERED'
+            ? `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300 shadow-sm animate-pulse">⚠ Tampered</span>`
+            : `<button type="button" onclick="verifyIntegrity(${data.id})" id="verify-btn-${data.id}" class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition">Verify Integrity</button>`;
+        tr.innerHTML = `
+            <td class="py-3 px-4 font-mono font-semibold text-slate-900">#${data.id}</td>
+            <td class="py-3 px-4 text-slate-600 whitespace-nowrap">${data.timestamp || ''}</td>
+            <td class="py-3 px-4 font-medium text-slate-900 max-w-[180px] truncate" title="${data.sender || ''}">${data.sender || ''}</td>
+            <td class="py-3 px-4 text-slate-800 max-w-[220px] truncate" title="${data.subject || ''}">${data.subject || ''}</td>
+            <td class="py-3 px-4 whitespace-nowrap">${buildVerdictBadge(data.decision || data.verdict)}</td>
+            <td class="py-3 px-4 whitespace-nowrap">${buildScoreBadge(data.threat_score !== undefined ? data.threat_score : (data.score || 0))}</td>
+            <td class="py-3 px-4 whitespace-nowrap">
+                <span class="px-2 py-1 rounded text-xs font-bold text-white bg-blue-600">
+                    AI Confidence: ${aiScore}%
+                </span>
+            </td>
+            <td class="py-3 px-4 font-mono text-[11px] text-slate-500 whitespace-nowrap" title="${data.sha256_hash || ''}">
+                <div class="flex flex-col space-y-1">
+                    <code>${hashShort}...</code>
+                    <div class="flex items-center space-x-1.5" id="verify-container-${data.id}">
+                        ${verifyCell}
+                    </div>
+                </div>
+            </td>
+            <td class="py-3 px-4 text-right whitespace-nowrap">
+                <!-- Eye Icon Actions Dropdown -->
+                <div class="relative inline-block text-left action-dropdown">
+                    <button type="button" onclick="toggleActionDropdown(${data.id}, event)" class="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition focus:outline-none" title="Actions">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                    </button>
+                    <div id="dropdown-menu-${data.id}" class="hidden absolute right-0 mt-1 w-36 bg-white rounded-xl shadow-lg border border-slate-200 py-1.5 z-30 animate-in fade-in zoom-in duration-100">
+                        <button type="button" onclick="openInspectModal(${data.id})" class="w-full text-left px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 flex items-center space-x-2">
+                            <svg class="w-4 h-4 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                            <span>Inspect</span>
+                        </button>
+                        <button type="button" onclick="deleteCase(${data.id})" class="w-full text-left px-3 py-1.5 text-xs text-rose-600 hover:bg-rose-50 flex items-center space-x-2 border-t border-slate-100">
+                            <svg class="w-4 h-4 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                            <span>Delete</span>
+                        </button>
+                    </div>
+                </div>
+            </td>
+        `;
+
+        // Insert at the top of the table body
+        tbody.insertBefore(tr, tbody.firstChild);
+
+        // Cap live table DOM to 100 rows — remove oldest visible rows beyond limit
+        const allRows = tbody.querySelectorAll('.audit-row');
+        if (allRows.length > 100) {
+            for (let i = 100; i < allRows.length; i++) {
+                allRows[i].remove();
+            }
+        }
+
+        // Remove pulse animation after 2 seconds
+        setTimeout(() => tr.classList.remove('animate-pulse'), 2000);
+
+        // Apply active filters to the new row
+        filterAuditTable();
+    }
+
+    function updateStatCounters(decision) {
+        const dec = (decision || '').toUpperCase();
+        liveStats.total++;
+        if (dec === 'ALLOW') liveStats.allow++;
+        else if (dec === 'QUARANTINE') liveStats.quarantine++;
+        else if (dec === 'BLOCK') liveStats.block++;
+
+        document.getElementById('stat-total').textContent = liveStats.total;
+        document.getElementById('stat-allow').textContent = liveStats.allow;
+        document.getElementById('stat-quarantine').textContent = liveStats.quarantine;
+        document.getElementById('stat-block').textContent = liveStats.block;
+
+        updateChart();
+    }
+
+    // Connect Socket.IO (gracefully degrade if server has no SocketIO support)
+    try {
+        const socket = io({ transports: ['websocket', 'polling'] });
+
+        socket.on('connect', function() {
+            console.log('[Dashboard] WebSocket connected — real-time updates active');
+            // Update the gateway status badge to show live connection
+            const badge = document.querySelector('.animate-ping');
+            if (badge) badge.classList.add('bg-emerald-500');
+        });
+
+        socket.on('new_email_event', function(data) {
+            console.log('[Dashboard] New email event:', data);
+            insertEmailRow(data);
+            updateStatCounters(data.decision);
+        });
+
+        socket.on('disconnect', function() {
+            console.log('[Dashboard] WebSocket disconnected');
+        });
+    } catch (e) {
+        console.log('[Dashboard] Socket.IO not available — using static view');
+    }
+</script>
+{% endblock %}

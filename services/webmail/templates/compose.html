@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Compose — Lab Mail{% endblock %}
+{% block content %}
+<div class="max-w-3xl">
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="px-5 py-3 bg-slate-800 text-white text-sm font-medium">New message</div>
+        <form method="POST" action="{{ url_for('compose') }}" class="p-5 space-y-4">
+            <div class="flex items-center gap-3 border-b border-slate-100 pb-3">
+                <label for="from" class="w-16 text-sm text-slate-500">From</label>
+                <input type="text" name="sender" value="{{ current_user.email }}" readonly class="bg-gray-100 text-gray-700 cursor-not-allowed w-full p-2 border rounded" />
+            </div>
+            <div class="flex items-center gap-3 border-b border-slate-100 pb-3">
+                <label for="recipient" class="w-16 text-sm text-slate-500">To</label>
+                <input id="recipient" name="recipient" type="email" required value="{{ recipient or '' }}" placeholder="user2@lab.local"
+                       class="flex-1 text-sm outline-none focus:ring-0">
+            </div>
+            <div class="flex items-center gap-3 border-b border-slate-100 pb-3">
+                <label for="subject" class="w-16 text-sm text-slate-500">Subject</label>
+                <input id="subject" name="subject" type="text" value="{{ subject or '' }}" placeholder="Subject"
+                       class="flex-1 text-sm outline-none">
+            </div>
+            <textarea id="body" name="body" rows="12" placeholder="Write your message"
+                      class="w-full text-sm outline-none resize-y min-h-[16rem]">{{ body or '' }}</textarea>
+            <div class="flex items-center justify-between pt-2">
+                <button type="submit" class="rounded-full bg-[#0b57d0] hover:bg-[#0842a0] text-white text-sm font-medium px-6 py-2.5">Send</button>
+                <a href="{{ url_for('inbox') }}" class="text-sm text-slate-500 hover:text-slate-800">Discard</a>
+            </div>
+        </form>
+    </div>
+    <p class="text-xs text-slate-500 mt-3 px-1">Send delivers this message by SMTP to the gateway at 127.0.0.1:1025. Quarantined and blocked mail never reaches the recipient inbox.</p>
+</div>
+{% endblock %}

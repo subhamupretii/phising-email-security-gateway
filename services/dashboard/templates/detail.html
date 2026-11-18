@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block title %}Message Audit #{{ msg.id }} Detail{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- Navigation Breadcrumb & Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-3 border-b border-slate-200">
+        <div>
+            <div class="flex items-center space-x-2 text-xs font-semibold text-slate-500 mb-1">
+                <a href="/" class="hover:text-brand-600 transition">&larr; Back to Dashboard</a>
+                <span>/</span>
+                <span>Audit Detail</span>
+            </div>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Message Audit Record #{{ msg.id }}</h1>
+        </div>
+        <div class="mt-3 sm:mt-0 flex items-center space-x-2.5">
+            <a href="/verify/{{ msg.id }}" class="inline-flex items-center px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 font-semibold text-xs transition">
+                <svg class="w-4 h-4 mr-1.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+                Verify NIST Hash
+            </a>
+            <a href="/download/{{ msg.id }}" class="inline-flex items-center px-3 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-semibold text-xs shadow-sm transition">
+                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Download Evidence (.eml)
+            </a>
+        </div>
+    </div>
+
+    <!-- Metadata Grid -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <h2 class="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4">Forensic Metadata & Threat Verdict</h2>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-y-4 gap-x-6 text-sm">
+            <div>
+                <span class="block text-xs font-semibold text-slate-500 uppercase">Received (UTC)</span>
+                <span class="font-mono text-slate-900">{{ msg.timestamp }}</span>
+            </div>
+            <div>
+                <span class="block text-xs font-semibold text-slate-500 uppercase">Verdict</span>
+                <div class="mt-0.5">
+                    {% if msg.decision == 'ALLOW' %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 uppercase">ALLOW (RELAYED)</span>
+                    {% elif msg.decision == 'QUARANTINE' %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200 uppercase">QUARANTINE (HELD)</span>
+                    {% else %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-200 uppercase">BLOCK (SUPPRESSED)</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div>
+                <span class="block text-xs font-semibold text-slate-500 uppercase">Threat Risk Score</span>
+                <div class="mt-0.5 font-bold font-mono">
+                    {% if msg.score < 35 %}
+                        <span class="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">{{ msg.score|int }} / 100</span>
+                    {% elif msg.score < 70 %}
+                        <span class="text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">{{ msg.score|int }} / 100</span>
+                    {% else %}
+                        <span class="text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">{{ msg.score|int }} / 100</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="md:col-span-2 lg:col-span-1">
+                <span class="block text-xs font-semibold text-slate-500 uppercase">Sender (Envelope From)</span>
+                <span class="font-medium text-slate-900 break-all">{{ msg.sender }}</span>
+            </div>
+            <div class="md:col-span-2 lg:col-span-2">
+                <span class="block text-xs font-semibold text-slate-500 uppercase">Recipient(s)</span>
+                <span class="font-medium text-slate-900 break-all">{{ msg.recipient }}</span>
+            </div>
+            <div class="md:col-span-2 lg:col-span-3">
+                <span class="block text-xs font-semibold text-slate-500 uppercase">Subject</span>
+                <span class="font-medium text-slate-900">{{ msg.subject }}</span>
+            </div>
+            <div class="md:col-span-2 lg:col-span-3">
+                <div class="flex items-center justify-between">
+                    <span class="block text-xs font-semibold text-slate-500 uppercase">SHA-256 Forensic Baseline Hash</span>
+                    <div id="verify-container-{{ msg.id }}">
+                        <button type="button" onclick="verifyIntegrity({{ msg.id }})" id="verify-btn-{{ msg.id }}" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition">
+                            Verify Integrity
+                        </button>
+                    </div>
+                </div>
+                <code class="font-mono text-xs bg-slate-50 px-2.5 py-1 rounded border border-slate-200 text-slate-700 block mt-1 break-all">{{ msg.sha256_hash }}</code>
+            </div>
+            <div class="md:col-span-2 lg:col-span-3">
+                <span class="block text-xs font-semibold text-slate-500 uppercase">Evidence On-Disk Path</span>
+                <code class="font-mono text-xs bg-slate-50 px-2.5 py-1 rounded border border-slate-200 text-slate-700 block mt-1 break-all">{{ msg.eml_path }}</code>
+            </div>
+        </div>
+    </div>
+
+    <!-- Parsed MIME Headers Box (if present) -->
+    {% if headers %}
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <h2 class="text-sm font-bold text-slate-800 uppercase tracking-wider mb-3">Extracted RFC 5322 Headers</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs font-mono">
+                <tbody class="divide-y divide-slate-100">
+                    {% for name, value in headers.items() %}
+                    <tr>
+                        <td class="py-1.5 pr-4 font-semibold text-slate-600 whitespace-nowrap">{{ name }}:</td>
+                        <td class="py-1.5 text-slate-900 break-all">{{ value }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Raw EML Evidence Payload Viewer -->
+    <div class="bg-slate-900 rounded-2xl shadow-lg border border-slate-800 overflow-hidden">
+        <div class="bg-slate-800/80 px-5 py-3 border-b border-slate-700/60 flex items-center justify-between text-xs text-slate-300">
+            <div class="flex items-center space-x-2">
+                <span class="w-3 h-3 rounded-full bg-rose-500/80 inline-block"></span>
+                <span class="w-3 h-3 rounded-full bg-amber-500/80 inline-block"></span>
+                <span class="w-3 h-3 rounded-full bg-emerald-500/80 inline-block"></span>
+                <span class="ml-2 font-mono font-medium text-slate-200">Raw RFC 5322 Evidence Payload (.eml)</span>
+            </div>
+            <button onclick="navigator.clipboard.writeText(document.getElementById('rawEmlCode').innerText); alert('Copied raw EML payload to clipboard!');" 
+                class="hover:text-white px-2 py-1 rounded bg-slate-700/60 hover:bg-slate-700 font-medium transition">
+                Copy Raw Payload
+            </button>
+        </div>
+        <div class="p-5 overflow-x-auto max-h-[500px]">
+            <pre id="rawEmlCode" class="text-xs font-mono text-emerald-400 whitespace-pre-wrap leading-relaxed">{{ raw_content }}</pre>
+        </div>
+    </div>
+
+</div>
+
+<script>
+function verifyIntegrity(logId) {
+    const container = document.getElementById(`verify-container-${logId}`);
+    const btn = document.getElementById(`verify-btn-${logId}`);
+    if (!container) return;
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span class="inline-block animate-spin mr-1">↻</span>Checking...`;
+    }
+
+    fetch(`/api/logs/${logId}/verify-hash`, { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'VERIFIED') {
+                container.innerHTML = `
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        ✓ Verified
+                    </span>
+                `;
+            } else if (data.status === 'TAMPERED') {
+                container.innerHTML = `
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                        ⚠ Tampered
+                    </span>
+                `;
+            } else {
+                container.innerHTML = `
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                        ⚠ Missing
+                    </span>
+                `;
+            }
+        })
+        .catch(err => {
+            console.error("Verification error:", err);
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = "Retry";
+            }
+        });
+}
+</script>
+{% endblock %}
+

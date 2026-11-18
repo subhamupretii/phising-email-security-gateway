@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% block title %}{{ folder_title|default('Inbox') }} — Lab Mail{% endblock %}
+{% block content %}
+<div class="bg-white rounded-2xl border border-slate-200 shadow-sm min-h-[70vh] flex flex-col">
+    <div class="px-4 sm:px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
+        <div>
+            <h1 class="text-lg font-medium text-slate-800">{{ folder_title|default('Inbox') }}</h1>
+            <p class="text-xs text-slate-500 mt-0.5 sm:hidden">{{ current_user.email }}</p>
+        </div>
+        <div class="flex items-center gap-2">
+            <span class="text-xs px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 font-medium">{{ messages|length }} message{{ 's' if messages|length != 1 else '' }}</span>
+            <a href="{{ url_for('compose') }}" class="sm:hidden text-sm font-medium text-[#1a73e8]">Compose</a>
+        </div>
+    </div>
+
+    {% if not messages %}
+    <div class="flex-1 flex flex-col items-center justify-center text-center px-6 py-20">
+        <p class="text-slate-500 text-sm">No messages in {{ folder_title|default('Inbox') }} for {{ current_user.email }}.</p>
+        {% if active_folder == 'inbox' %}
+        <p class="text-slate-400 text-xs mt-2 max-w-sm">Messages appear here after the gateway on port 1025 returns an ALLOW verdict to port 1026.</p>
+        {% elif active_folder == 'sent' %}
+        <p class="text-slate-400 text-xs mt-2 max-w-sm">Copies of outgoing messages sent via the Compose window appear here.</p>
+        {% elif active_folder == 'spam' %}
+        <p class="text-slate-400 text-xs mt-2 max-w-sm">Suspicious messages flagged by the gateway (threat score &ge; 50 or QUARANTINE / BLOCK) appear here.</p>
+        {% endif %}
+    </div>
+    {% else %}
+    <ul class="divide-y divide-slate-100">
+        {% for message in messages %}
+        <li id="msg-{{ message.id }}"
+            class="msg-row flex items-start gap-3 px-4 sm:px-5 py-3 cursor-pointer hover:shadow-[inset_0_-1px_0_rgba(100,121,143,0.12)] hover:bg-slate-50 {% if not message.is_read and active_folder != 'sent' %}bg-[#f2f6fc]{% endif %}"
+            data-id="{{ message.id }}"
+            data-read="{{ message.is_read }}"
+            data-ai="{{ message.ai_score if message.ai_score is defined and message.ai_score is not none else 0 }}"
+            data-threat="{{ message.threat_score if message.threat_score is defined and message.threat_score is not none else 0 }}"
+            data-verdict="{{ message.verdict if message.verdict is defined and message.verdict else 'ALLOW' }}">
+            <span class="mt-2 w-2 h-2 rounded-full shrink-0 {% if message.is_read or active_folder == 'sent' %}bg-transparent{% else %}bg-[#1a73e8] unread-dot{% endif %}" data-role="dot"></span>
+            <div class="min-w-0 flex-1" data-role="open">
+                <div class="flex items-baseline justify-between gap-3">
+                    <p class="msg-sender truncate text-sm {% if message.is_read or active_folder == 'sent' %}font-normal text-slate-600{% else %}font-semibold text-slate-900{% endif %}">
+                        {% if active_folder == 'sent' %}To: {{ message.recipient }}{% else %}{{ message.sender }}{% endif %}
+                    </p>
+                    <time class="text-xs shrink-0 {% if message.is_read or active_folder == 'sent' %}text-slate-400{% else %}font-semibold text-slate-700{% endif %}">{{ message.timestamp[:16]|replace('T', ' ') }}</time>
+                </div>
+                <div class="flex items-center gap-2 mt-0.5">
+                    <p class="msg-subject truncate text-sm {% if message.is_read or active_folder == 'sent' %}font-normal text-slate-600{% else %}font-semibold text-slate-900{% endif %}">{{ message.subject }}</p>
+                    {% if active_folder != 'sent' %}
+                        {% if message.verdict == 'BLOCK' %}
+                        <span class="px-1.5 py-0.5 rounded text-[10px] font-bold text-white bg-rose-600 uppercase">BLOCK</span>
+                        {% elif message.verdict == 'QUARANTINE' or (message.threat_score is defined and message.threat_score >= 50) %}
+                        <span class="px-1.5 py-0.5 rounded text-[10px] font-bold text-white bg-amber-600 uppercase">SPAM</span>
+                        {% else %}
+                        <span class="px-1.5 py-0.5 rounded text-[10px] font-bold text-emerald-800 bg-emerald-100 uppercase">SAFE</span>
+                        {% endif %}
+                        <span class="px-1.5 py-0.5 rounded text-[10px] font-bold text-white bg-blue-600">
+                            AI: {{ message.ai_score if message.ai_score is defined and message.ai_score is not none else 0 }}%
+                        </span>
+                    {% endif %}
+                </div>
+                <p class="truncate text-xs text-slate-500 mt-0.5">{{ message.body }}</p>
+            </div>
+            {% if active_folder != 'sent' %}
+            <button type="button"
+                    class="mark-read-btn shrink-0 mt-1 text-xs font-medium rounded-full border border-slate-200 px-3 py-1.5 hover:bg-white hover:border-[#1a73e8] hover:text-[#1a73e8]"
+                    data-id="{{ message.id }}">
+                {{ 'Mark as unread' if message.is_read else 'Mark as read' }}
+            </button>
+            {% endif %}
+            <pre id="body-{{ message.id }}" class="hidden">{{ message.body }}</pre>
+        </li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+
+    <section id="reader" class="hidden border-t border-slate-200 px-5 sm:px-8 py-6 bg-white">
+        <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
+            <div>
+                <p id="reader-from" class="text-sm font-semibold text-slate-900"></p>
+                <h2 id="reader-subject" class="text-xl font-normal text-slate-800 mt-1"></h2>
+            </div>
+            <div id="reader-badges" class="flex items-center gap-2">
+                <span id="reader-verdict-badge" class="px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider"></span>
+                <span id="reader-ai-badge" class="px-2.5 py-1 rounded-full text-xs font-bold text-white bg-blue-600"></span>
+                <span id="reader-threat-badge" class="px-2.5 py-1 rounded-full text-xs font-mono font-bold"></span>
+            </div>
+        </div>
+        <pre id="reader-body" class="mt-4 text-sm text-slate-700 whitespace-pre-wrap font-sans"></pre>
+    </section>
+</div>
+
+<script>
+(function () {
+    const badge = document.getElementById("unread-badge");
+
+    function setBadge(count) {
+        if (!badge) return;
+        badge.textContent = String(count);
+        badge.classList.toggle("hidden", count <= 0);
+    }
+
+    function applyReadState(row, isRead) {
+        row.dataset.read = isRead ? "1" : "0";
+        row.classList.toggle("bg-[#f2f6fc]", !isRead);
+        const dot = row.querySelector("[data-role='dot']");
+        if (dot) {
+            dot.classList.toggle("bg-[#1a73e8]", !isRead);
+            dot.classList.toggle("unread-dot", !isRead);
+            dot.classList.toggle("bg-transparent", isRead);
+        }
+        row.querySelectorAll(".msg-sender, .msg-subject").forEach(function (el) {
+            el.classList.toggle("font-semibold", !isRead);
+            el.classList.toggle("text-slate-900", !isRead);
+            el.classList.toggle("font-normal", isRead);
+            el.classList.toggle("text-slate-600", isRead);
+        });
+        const time = row.querySelector("time");
+        if (time) {
+            time.classList.toggle("font-semibold", !isRead);
+            time.classList.toggle("text-slate-700", !isRead);
+            time.classList.toggle("text-slate-400", isRead);
+        }
+        const button = row.querySelector(".mark-read-btn");
+        if (button) {
+            button.textContent = isRead ? "Mark as unread" : "Mark as read";
+        }
+    }
+
+    document.querySelectorAll(".mark-read-btn").forEach(function (button) {
+        button.addEventListener("click", async function (event) {
+            event.stopPropagation();
+            const id = button.dataset.id;
+            const response = await fetch("/api/mark-read/" + id, { method: "POST" });
+            if (!response.ok) return;
+            const data = await response.json();
+            const row = document.getElementById("msg-" + id);
+            if (row) applyReadState(row, data.is_read === 1);
+            const remaining = document.querySelectorAll(".unread-dot").length;
+            setBadge(remaining);
+        });
+    });
+
+    document.querySelectorAll(".msg-row").forEach(function (row) {
+        row.addEventListener("click", function () {
+            const id = row.dataset.id;
+            const source = document.getElementById("body-" + id);
+            const reader = document.getElementById("reader");
+            document.getElementById("reader-from").textContent = row.querySelector(".msg-sender").textContent;
+            document.getElementById("reader-subject").textContent = row.querySelector(".msg-subject").textContent;
+            document.getElementById("reader-body").textContent = source ? source.textContent : "";
+
+            // Populate threat verdict and AI score badges in reader header
+            const aiVal = row.dataset.ai || '0';
+            const threatVal = row.dataset.threat || '0';
+            const verdictVal = (row.dataset.verdict || 'ALLOW').toUpperCase();
+
+            const verdictEl = document.getElementById("reader-verdict-badge");
+            const aiEl = document.getElementById("reader-ai-badge");
+            const threatEl = document.getElementById("reader-threat-badge");
+
+            if (verdictEl && aiEl && threatEl) {
+                if (verdictVal === 'BLOCK') {
+                    verdictEl.className = "px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-rose-100 text-rose-800 border border-rose-200";
+                    verdictEl.textContent = "Verdict: BLOCK";
+                } else if (verdictVal === 'QUARANTINE' || parseInt(threatVal, 10) >= 50) {
+                    verdictEl.className = "px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200";
+                    verdictEl.textContent = "Verdict: SPAM";
+                } else {
+                    verdictEl.className = "px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200";
+                    verdictEl.textContent = "Verdict: ALLOW (CLEAN)";
+                }
+
+                aiEl.textContent = "AI Confidence: " + aiVal + "%";
+                threatEl.className = "px-2.5 py-1 rounded-full text-xs font-mono font-bold " + 
+                    (parseInt(threatVal, 10) >= 50 ? "bg-rose-50 text-rose-700 border border-rose-200" : "bg-slate-100 text-slate-700");
+                threatEl.textContent = "Threat Score: " + threatVal + "/100";
+            }
+
+            reader.classList.remove("hidden");
+            reader.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        });
+    });
+})();
+</script>
+{% endblock %}

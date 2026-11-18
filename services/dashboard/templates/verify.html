@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}NIST SP 800-86 Verification - Message #{{ msg.id }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6 max-w-4xl mx-auto">
+
+    <!-- Breadcrumb & Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-3 border-b border-slate-200">
+        <div>
+            <div class="flex items-center space-x-2 text-xs font-semibold text-slate-500 mb-1">
+                <a href="/" class="hover:text-brand-600 transition">&larr; Back to Dashboard</a>
+                <span>/</span>
+                <a href="/message/{{ msg.id }}" class="hover:text-brand-600 transition">Message #{{ msg.id }}</a>
+                <span>/</span>
+                <span>NIST SP 800-86 Verification</span>
+            </div>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Cryptographic Forensic Hash Verification</h1>
+        </div>
+        <div class="mt-3 sm:mt-0 flex items-center space-x-2">
+            <a href="/message/{{ msg.id }}" class="inline-flex items-center px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 font-semibold text-xs transition">
+                View Details
+            </a>
+            {% if file_found %}
+            <a href="/download/{{ msg.id }}" class="inline-flex items-center px-3 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-semibold text-xs shadow-sm transition">
+                Download Evidence (.eml)
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Integrity Status Card Banner -->
+    {% if is_valid %}
+    <div class="p-6 rounded-2xl bg-emerald-50 border-2 border-emerald-300 shadow-sm flex items-start space-x-4">
+        <div class="w-12 h-12 rounded-xl bg-emerald-500 text-white flex-shrink-0 flex items-center justify-center shadow-md">
+            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+            </svg>
+        </div>
+        <div>
+            <h2 class="text-lg font-black text-emerald-900">FORENSIC INTEGRITY VERIFIED</h2>
+            <p class="text-sm text-emerald-800 mt-1 leading-relaxed">
+                The computed SHA-256 hash of the evidence payload file stored on disk is an <strong>exact byte-for-byte match</strong> with the baseline cryptographic record registered at ingestion time.
+            </p>
+            <div class="mt-2 text-xs font-semibold text-emerald-700">
+                NIST SP 800-86 Chain-of-Custody: PRISTINE &bull; NO EVIDENCE TAMPERING DETECTED
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="p-6 rounded-2xl bg-rose-50 border-2 border-rose-300 shadow-sm flex items-start space-x-4">
+        <div class="w-12 h-12 rounded-xl bg-rose-500 text-white flex-shrink-0 flex items-center justify-center shadow-md">
+            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+        </div>
+        <div>
+            <h2 class="text-lg font-black text-rose-900">CRYPTOGRAPHIC INTEGRITY FAILURE</h2>
+            <p class="text-sm text-rose-800 mt-1 leading-relaxed">
+                {% if not file_found %}
+                    The on-disk evidence payload file cannot be found at the registered forensic path. The file may have been moved or removed.
+                {% else %}
+                    The computed SHA-256 checksum of the on-disk evidence does <strong>not match</strong> the baseline hash recorded in the gateway database. The evidence payload may have been modified or corrupted post-ingestion.
+                {% endif %}
+            </p>
+            <div class="mt-2 text-xs font-semibold text-rose-700">
+                NIST SP 800-86 Chain-of-Custody: INVALID / TAMPER ALERT
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Cryptographic Hash Comparison Box -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-5">
+        <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider">Hash Comparison Inspection</h3>
+
+        <div class="space-y-4">
+            <!-- Database Baseline Hash -->
+            <div class="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                <div class="flex items-center justify-between mb-1.5">
+                    <span class="text-xs font-bold text-slate-600 uppercase tracking-wider">Database Baseline Record (SHA-256)</span>
+                    <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-200 text-slate-700">Recorded at Ingestion</span>
+                </div>
+                <code class="block font-mono text-xs sm:text-sm text-slate-900 break-all bg-white p-2.5 rounded-lg border border-slate-200 select-all">
+                    {{ db_hash }}
+                </code>
+            </div>
+
+            <!-- Disk File Computed Hash -->
+            <div class="p-4 rounded-xl {% if is_valid %}bg-emerald-50/60 border border-emerald-200{% else %}bg-rose-50/60 border border-rose-200{% endif %}">
+                <div class="flex items-center justify-between mb-1.5">
+                    <span class="text-xs font-bold {% if is_valid %}text-emerald-800{% else %}text-rose-800{% endif %} uppercase tracking-wider">Current Computed Disk Hash (SHA-256)</span>
+                    <span class="px-2 py-0.5 rounded text-[10px] font-semibold {% if is_valid %}bg-emerald-200 text-emerald-800{% else %}bg-rose-200 text-rose-800{% endif %}">Computed Just Now</span>
+                </div>
+                <code class="block font-mono text-xs sm:text-sm text-slate-900 break-all bg-white p-2.5 rounded-lg border border-slate-200 select-all">
+                    {{ current_hash }}
+                </code>
+            </div>
+        </div>
+
+        <!-- Forensic Details Table -->
+        <div class="pt-4 border-t border-slate-100">
+            <h4 class="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Evidence File Details</h4>
+            <table class="w-full text-xs">
+                <tbody class="divide-y divide-slate-100">
+                    <tr>
+                        <td class="py-2 font-semibold text-slate-500 w-40">File Location:</td>
+                        <td class="py-2 font-mono text-slate-800 break-all">{{ msg.eml_path }}</td>
+                    </tr>
+                    <tr>
+                        <td class="py-2 font-semibold text-slate-500">File On Disk:</td>
+                        <td class="py-2">
+                            {% if file_found %}
+                                <span class="text-emerald-700 font-semibold">&check; Present ({{ file_size }} bytes)</span>
+                            {% else %}
+                                <span class="text-rose-700 font-semibold">&cross; Not Found on Disk</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="py-2 font-semibold text-slate-500">Forensic Standard:</td>
+                        <td class="py-2 text-slate-700 font-medium">NIST Special Publication 800-86 Guide to Integrating Forensic Techniques into Incident Response</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+

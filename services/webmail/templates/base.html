@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Lab Mail{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-[#f6f8fc] text-slate-800 min-h-screen antialiased">
+{% if current_user.is_authenticated %}
+<div class="h-screen flex flex-col">
+    <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 sm:px-6 shrink-0">
+        <a href="{{ url_for('inbox') }}" class="flex items-center gap-3">
+            <span class="w-9 h-9 rounded-lg bg-[#c5221f] text-white flex items-center justify-center shadow-sm">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                </svg>
+            </span>
+            <span class="text-xl font-normal tracking-tight text-slate-700">Lab Mail</span>
+        </a>
+        <div class="flex items-center gap-3">
+            <span class="hidden sm:inline text-sm text-slate-600 bg-slate-100 rounded-full px-3 py-1">{{ current_user.email }}</span>
+            <a href="{{ url_for('logout') }}" class="text-sm font-medium text-slate-600 hover:text-[#c5221f]">Sign out</a>
+        </div>
+    </header>
+    <div class="flex flex-1 min-h-0">
+        <aside class="w-56 shrink-0 px-3 py-4 hidden sm:flex flex-col gap-1">
+            <a href="{{ url_for('compose') }}" class="mb-3 inline-flex items-center gap-3 rounded-2xl bg-[#c2e7ff] hover:shadow-md px-5 py-3.5 text-sm font-medium text-slate-800 transition-shadow">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                Compose
+            </a>
+            <!-- Inbox -->
+            <a href="{{ url_for('inbox') }}" class="flex items-center justify-between rounded-full px-4 py-2 text-sm {% if active_folder == 'inbox' %}font-semibold bg-[#d3e3fd] text-slate-900{% else %}font-medium text-slate-700 hover:bg-slate-100{% endif %}">
+                <span class="flex items-center gap-2">
+                    <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg>
+                    Inbox
+                </span>
+                {% if unread_inbox_count %}
+                <span id="unread-badge" class="min-w-[1.25rem] text-center text-xs font-bold bg-[#1a73e8] text-white rounded-full px-1.5 py-0.5">{{ unread_inbox_count }}</span>
+                {% else %}
+                <span id="unread-badge" class="hidden min-w-[1.25rem] text-center text-xs font-bold bg-[#1a73e8] text-white rounded-full px-1.5 py-0.5">0</span>
+                {% endif %}
+            </a>
+            <!-- Sent -->
+            <a href="{{ url_for('sent') }}" class="flex items-center justify-between rounded-full px-4 py-2 text-sm {% if active_folder == 'sent' %}font-semibold bg-[#d3e3fd] text-slate-900{% else %}font-medium text-slate-700 hover:bg-slate-100{% endif %}">
+                <span class="flex items-center gap-2">
+                    <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                    Sent
+                </span>
+            </a>
+            <!-- Spam -->
+            <a href="{{ url_for('spam') }}" class="flex items-center justify-between rounded-full px-4 py-2 text-sm {% if active_folder == 'spam' %}font-semibold bg-[#d3e3fd] text-slate-900{% else %}font-medium text-slate-700 hover:bg-slate-100{% endif %}">
+                <span class="flex items-center gap-2">
+                    <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                    Spam
+                </span>
+                {% if unread_spam_count %}
+                <span id="unread-spam-badge" class="min-w-[1.25rem] text-center text-xs font-bold bg-[#ea4335] text-white rounded-full px-1.5 py-0.5">{{ unread_spam_count }}</span>
+                {% else %}
+                <span id="unread-spam-badge" class="hidden min-w-[1.25rem] text-center text-xs font-bold bg-[#ea4335] text-white rounded-full px-1.5 py-0.5">0</span>
+                {% endif %}
+            </a>
+            <p class="mt-4 px-4 text-xs text-slate-500 leading-relaxed">Mail is submitted to the gateway on port 1025. Gateway forwards ALLOW messages here.</p>
+        </aside>
+        <main class="flex-1 min-w-0 overflow-auto p-3 sm:p-4">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="mb-3 space-y-2">
+                    {% for category, message in messages %}
+                        <div class="rounded-xl px-4 py-3 text-sm border {% if category == 'error' %}bg-rose-50 border-rose-200 text-rose-800{% elif category == 'success' %}bg-emerald-50 border-emerald-200 text-emerald-800{% else %}bg-sky-50 border-sky-200 text-sky-800{% endif %}">{{ message }}</div>
+                    {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+</div>
+{% else %}
+    {% block auth %}{% endblock %}
+{% endif %}
+</body>
+</html>

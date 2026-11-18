@@ -1,0 +1,262 @@
+<!-- Reusable Forensic Inspection Modal with SHA-256 Hash Verification -->
+<div id="inspectModal" class="fixed inset-0 z-50 hidden overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-150">
+        
+        <!-- Modal Header -->
+        <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between shrink-0">
+            <div class="flex items-center space-x-2">
+                <div class="w-7 h-7 rounded-lg bg-brand-500 flex items-center justify-center text-white">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                </div>
+                <div>
+                    <h3 class="text-sm font-bold tracking-tight" id="modalTitle">Forensic Case Inspection</h3>
+                    <p class="text-[11px] text-slate-400" id="modalSubtitle">NIST SP 800-86 Cryptographic Evidence Review</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeInspectModal()" class="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="p-6 space-y-5 overflow-y-auto text-xs">
+            
+            <!-- Metadata & Verdict Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                <div>
+                    <span class="block text-[10px] font-bold text-slate-500 uppercase">Received (UTC)</span>
+                    <span id="modalTimestamp" class="font-mono text-slate-800 font-semibold">-</span>
+                </div>
+                <div>
+                    <span class="block text-[10px] font-bold text-slate-500 uppercase">Verdict</span>
+                    <div id="modalVerdictBadge" class="mt-0.5">-</div>
+                </div>
+                <div>
+                    <span class="block text-[10px] font-bold text-slate-500 uppercase">AI Confidence</span>
+                    <span id="modalAiScore" class="inline-flex items-center mt-0.5 px-2 py-0.5 rounded text-[11px] font-bold text-white bg-blue-600">-</span>
+                </div>
+                <div>
+                    <span class="block text-[10px] font-bold text-slate-500 uppercase">Composite Threat Score</span>
+                    <span id="modalThreatScore" class="inline-flex items-center mt-0.5 px-2 py-0.5 rounded text-[11px] font-mono font-bold">-</span>
+                </div>
+                <div class="sm:col-span-2">
+                    <span class="block text-[10px] font-bold text-slate-500 uppercase">Sender</span>
+                    <span id="modalSender" class="font-medium text-slate-900 break-all">-</span>
+                </div>
+                <div class="sm:col-span-2">
+                    <span class="block text-[10px] font-bold text-slate-500 uppercase">Recipient</span>
+                    <span id="modalRecipient" class="font-medium text-slate-900 break-all">-</span>
+                </div>
+                <div class="sm:col-span-2 lg:col-span-4">
+                    <span class="block text-[10px] font-bold text-slate-500 uppercase">Subject</span>
+                    <span id="modalSubject" class="font-semibold text-slate-900 text-sm">-</span>
+                </div>
+            </div>
+
+            <!-- Cryptographic Integrity Section -->
+            <div class="p-4 bg-white border border-slate-200 rounded-xl space-y-2.5">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-2">
+                        <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                        <span class="font-bold text-slate-800 text-xs uppercase tracking-wider">Cryptographic Forensic Baseline (SHA-256)</span>
+                    </div>
+                    <button type="button" id="modalVerifyBtn" onclick="runModalVerifyHash()" class="inline-flex items-center px-3 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs shadow-sm transition">
+                        Verify Hash
+                    </button>
+                </div>
+                
+                <div class="space-y-1">
+                    <span class="text-[10px] text-slate-500 font-semibold uppercase">Stored Baseline Hash:</span>
+                    <code id="modalStoredHash" class="block font-mono text-[11px] bg-slate-50 p-2 rounded border border-slate-200 text-slate-800 break-all">-</code>
+                </div>
+
+                <div id="modalComputedHashContainer" class="hidden space-y-1 pt-1">
+                    <span class="text-[10px] text-slate-500 font-semibold uppercase">Computed Live Hash:</span>
+                    <code id="modalComputedHash" class="block font-mono text-[11px] bg-slate-50 p-2 rounded border border-slate-200 text-slate-800 break-all">-</code>
+                </div>
+
+                <!-- Verification Result Banner -->
+                <div id="modalVerifyBanner" class="hidden mt-2 p-2.5 rounded-lg text-xs font-semibold"></div>
+            </div>
+
+            <!-- Raw Message / Headers Preview Box -->
+            <div class="space-y-2">
+                <span class="block text-xs font-bold text-slate-800 uppercase tracking-wider">Raw Evidence Payload (.eml) Preview</span>
+                <div class="rounded-xl bg-slate-900 p-4 overflow-x-auto text-emerald-400 font-mono text-[11px] leading-relaxed max-h-56">
+                    <pre id="modalRawContent" class="whitespace-pre-wrap">Loading evidence...</pre>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="px-6 py-3 bg-slate-50 border-t border-slate-200 flex justify-between items-center shrink-0">
+            <a id="modalPdfLink" href="#" class="inline-flex items-center px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs transition">
+                <svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                Download Report (PDF)
+            </a>
+            <button type="button" onclick="closeInspectModal()" class="px-4 py-1.5 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold text-xs transition">
+                Close
+            </button>
+        </div>
+
+    </div>
+</div>
+
+<script>
+let currentInspectLogId = null;
+
+function openInspectModal(logId) {
+    currentInspectLogId = logId;
+    const modal = document.getElementById('inspectModal');
+    if (!modal) return;
+
+    // Wire the PDF download link for this case
+    const pdfLink = document.getElementById('modalPdfLink');
+    if (pdfLink) {
+        pdfLink.href = `/api/logs/${logId}/report-pdf`;
+    }
+
+    // Reset UI state
+    document.getElementById('modalTitle').textContent = `Forensic Case Inspection #${logId}`;
+    document.getElementById('modalComputedHashContainer').classList.add('hidden');
+    document.getElementById('modalVerifyBanner').classList.add('hidden');
+    document.getElementById('modalRawContent').textContent = 'Loading forensic payload...';
+    const verifyBtn = document.getElementById('modalVerifyBtn');
+    if (verifyBtn) {
+        verifyBtn.disabled = false;
+        verifyBtn.textContent = 'Verify Hash';
+    }
+
+    modal.classList.remove('hidden');
+
+    fetch(`/api/logs/${logId}/inspect`)
+        .then(res => {
+            if (!res.ok) throw new Error("Could not load case details");
+            return res.json();
+        })
+        .then(data => {
+            document.getElementById('modalTimestamp').textContent = (data.timestamp || '').replace('T', ' ').substring(0, 19);
+            document.getElementById('modalSender').textContent = data.sender || '';
+            document.getElementById('modalRecipient').textContent = data.recipient || '';
+            document.getElementById('modalSubject').textContent = data.subject || '(No Subject)';
+            document.getElementById('modalStoredHash').textContent = data.sha256_hash || '(None)';
+            document.getElementById('modalAiScore').textContent = `AI Confidence: ${data.ai_score || 0}%`;
+
+            // Show saved verification status if previously verified
+            const verifyBanner = document.getElementById('modalVerifyBanner');
+            const verifyStatus = data.verification_status || 'UNVERIFIED';
+            const lastVerifiedAt = data.last_verified_at;
+
+            if (verifyStatus === 'VERIFIED' && lastVerifiedAt) {
+                verifyBanner.classList.remove('hidden');
+                verifyBanner.className = 'mt-2 p-2.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-900 border border-emerald-200 flex items-center space-x-2';
+                const verifiedTime = lastVerifiedAt.replace('T', ' ').substring(0, 19);
+                verifyBanner.innerHTML = `
+                    <svg class="w-4 h-4 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                    <span>✓ Integrity Verified — ${verifiedTime}</span>
+                `;
+            } else if (verifyStatus === 'TAMPERED') {
+                verifyBanner.classList.remove('hidden');
+                verifyBanner.className = 'mt-2 p-2.5 rounded-lg text-xs font-semibold bg-rose-50 text-rose-900 border border-rose-200 flex items-center space-x-2';
+                verifyBanner.innerHTML = `
+                    <svg class="w-4 h-4 text-rose-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                    <span>⚠ Hash Mismatch — File Tampered or Modified!</span>
+                `;
+            } else {
+                verifyBanner.classList.add('hidden');
+            }
+
+            const threatVal = data.threat_score !== undefined ? data.threat_score : (data.score || 0);
+            const threatBadge = document.getElementById('modalThreatScore');
+            threatBadge.textContent = `${threatVal}/100`;
+            if (threatVal < 35) {
+                threatBadge.className = 'inline-flex items-center mt-0.5 px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-200';
+            } else if (threatVal < 70) {
+                threatBadge.className = 'inline-flex items-center mt-0.5 px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-amber-50 text-amber-700 border border-amber-200';
+            } else {
+                threatBadge.className = 'inline-flex items-center mt-0.5 px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-rose-50 text-rose-700 border border-rose-200';
+            }
+
+            const verdictEl = document.getElementById('modalVerdictBadge');
+            const dec = (data.verdict || data.decision || 'ALLOW').toUpperCase();
+            if (dec === 'BLOCK') {
+                verdictEl.innerHTML = '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200 uppercase">BLOCK</span>';
+            } else if (dec === 'QUARANTINE') {
+                verdictEl.innerHTML = '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 uppercase">QUARANTINE</span>';
+            } else {
+                verdictEl.innerHTML = '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase">ALLOW</span>';
+            }
+
+            document.getElementById('modalRawContent').textContent = data.raw_content || '[No raw payload recorded]';
+        })
+        .catch(err => {
+            alert("Error inspecting log: " + err);
+            closeInspectModal();
+        });
+}
+
+function closeInspectModal() {
+    const modal = document.getElementById('inspectModal');
+    if (modal) modal.classList.add('hidden');
+    currentInspectLogId = null;
+}
+
+function runModalVerifyHash() {
+    if (!currentInspectLogId) return;
+    const btn = document.getElementById('modalVerifyBtn');
+    const computedContainer = document.getElementById('modalComputedHashContainer');
+    const computedEl = document.getElementById('modalComputedHash');
+    const banner = document.getElementById('modalVerifyBanner');
+
+    btn.disabled = true;
+    btn.innerHTML = `<span class="inline-block animate-spin mr-1">↻</span>Computing...`;
+
+    fetch(`/api/logs/${currentInspectLogId}/verify-hash`, { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.textContent = 'Verify Hash';
+
+            computedContainer.classList.remove('hidden');
+            computedEl.textContent = data.computed_hash || '(None)';
+
+            banner.classList.remove('hidden');
+            if (data.status === 'VERIFIED') {
+                banner.className = 'mt-2 p-2.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-900 border border-emerald-200 flex items-center space-x-2';
+                const verifiedTime = (data.last_verified_at || '').replace('T', ' ').substring(0, 19);
+                banner.innerHTML = `
+                    <svg class="w-4 h-4 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                    <span>✓ Integrity Verified — ${verifiedTime || 'Just now'}</span>
+                `;
+            } else if (data.status === 'TAMPERED') {
+                banner.className = 'mt-2 p-2.5 rounded-lg text-xs font-semibold bg-rose-50 text-rose-900 border border-rose-200 flex items-center space-x-2';
+                banner.innerHTML = `
+                    <svg class="w-4 h-4 text-rose-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                    <span>⚠ Hash Mismatch — File Tampered or Modified!</span>
+                `;
+            } else {
+                banner.className = 'mt-2 p-2.5 rounded-lg text-xs font-semibold bg-amber-50 text-amber-900 border border-amber-200 flex items-center space-x-2';
+                banner.innerHTML = `
+                    <svg class="w-4 h-4 text-amber-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                    <span>⚠ Evidence Payload File Missing On Disk</span>
+                `;
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.textContent = 'Retry Verify';
+            alert("Hash verification failed: " + err);
+        });
+}
+
+// Close on backdrop click or ESC
+window.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeInspectModal();
+});
+document.addEventListener('click', function(e) {
+    const modal = document.getElementById('inspectModal');
+    if (e.target === modal) closeInspectModal();
+});
+</script>
+
